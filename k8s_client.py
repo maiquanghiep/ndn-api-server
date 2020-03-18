@@ -28,7 +28,7 @@ class K8s:
             - containers (name, image, env, command) https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/V1Container.md 
             - nodeSelector 
         """
-        container = self.client.V1Container(command=commands, image=image, env=env)
+        container = self.client.V1Container(command=commands, image=image, env=env, name=name)
         node_selector = { "kubernetes.io/hostname": "vicsnet-edge1"}
         body.spec = self.client.V1PodSpec(containers= [container], node_selector=node_selector)
 
