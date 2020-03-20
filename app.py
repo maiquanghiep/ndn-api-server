@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from service import VIcsnf
+from service import VIcsnf, NfdFace, NfdRoute
 
 import json
 
@@ -14,6 +14,13 @@ def hello():
 def create_vicsnf():
     return jsonify(VIcsnf().create(request.form))
 
+@app.route('/nfd-face', methods=["POST"])
+def create_nfd_face():
+    return jsonify(NfdFace().create(request.form))
+
+@app.route('/nfd-route', methods=["POST"])
+def create_nfd_route():
+    return jsonify(NfdRoute().create(request.form))
 
 if __name__ == '__main__':
     app.run()
