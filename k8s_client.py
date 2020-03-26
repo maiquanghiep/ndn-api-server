@@ -16,10 +16,11 @@ class K8s:
         container_name = params.get('container_name') if params.get('container_name') else "testpythonclient"
         container_image = params.get('container_image') if params.get('container_image') else "192.168.103.250:5000/icn-dtn-base-0.6.5:1.0"
         commands = params.get('commands') if params.get('commands') else ["/bin/bash", "-c", "/root/start_vicsnf.sh; sleep 30d;"]
-        envs = params.get('envs')if params.get('envs') else [{"key": "LC_ALL", "value": "C.UTF-8"}]
-        envs = map(lambda x: self.client.V1EnvVar(x.key, x.value), envs)
-        annotations = None
-        node_selector = None
+        envs = params.get('envs')if params.get('envs') else []
+
+        envs = list(map(lambda x: self.client.V1EnvVar(x.get("name"), x.get("value")), envs))
+        node_selector = params.get('node_selector') if params.get('node_selector') else None
+        annotations = params.get('annotations') if params.get('annotations') else None
         # Create a body which stores the information of the pod to create
         body = self.client.V1Pod()
 
@@ -31,13 +32,20 @@ class K8s:
             - containers (name, image, env, command) https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/V1Container.md 
             - nodeSelector 
         """
-        container = self.client.V1Container(command=commands, image=container_image, env=[envs], name=container_name)
+        container = self.client.V1Container(command=commands, image=container_image, env=envs, name=container_name)
         node_selector = { "kubernechautes.io/hostname": node_selector } if node_selector else None
         body.spec = self.client.V1PodSpec(containers= [container], node_selector=node_selector)
-
 
         try:
             api_response = self.v1Api.create_namespaced_pod(namespace, body)
             print(api_response)
+
         except ApiException as e:
-            print("Exception when calling CoreV1Api->create_namespaced_pod: %s\n" % e)
+            raise
+    def delete_pod(self, params):
+        pod_name = params.get('pod_name')
+        namespace = params.get('namespace')
+        try:
+            self.v1Api.delete_namespaced_pod(name=pod_name, namespace= namespace)
+        except ApiException as e:
+            raise
