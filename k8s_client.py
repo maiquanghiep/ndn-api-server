@@ -10,12 +10,13 @@ class K8s:
         self.v1Api = client.CoreV1Api()
     def create_pod(self, params):
         # Default value. TODO: get values from request
-        namespace = 'vicsnet'
-        pod_name = "testpythonclient"
-        container_name = "testpythonclient"
-        container_image = "192.168.103.250:5000/icn-dtn-base-0.6.5:1.0"
-        commands = ["/bin/bash", "-c", "/root/start_vicsnf.sh; sleep 30d;"]
-        envs = [{"key": "LC_ALL", "value": "C.UTF-8"}]
+        
+        namespace = params.get('namespace') if params.get('namespace') else 'vicsnet'
+        pod_name = params.get('pod_name') if params.get('pod_name') else "testpythonclient"
+        container_name = params.get('container_name') if params.get('container_name') else "testpythonclient"
+        container_image = params.get('container_image') if params.get('container_image') else "192.168.103.250:5000/icn-dtn-base-0.6.5:1.0"
+        commands = params.get('commands') if params.get('commands') else ["/bin/bash", "-c", "/root/start_vicsnf.sh; sleep 30d;"]
+        envs = params.get('envs')if params.get('envs') else [{"key": "LC_ALL", "value": "C.UTF-8"}]
         envs = map(lambda x: self.client.V1EnvVar(x.key, x.value), envs)
         annotations = None
         node_selector = None

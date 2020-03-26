@@ -4,14 +4,20 @@ import nfd_agent_pb2_grpc
 import grpc
 import json
 from google.protobuf import empty_pb2
+import concurrent.futures
 
 class VIcsnf:
   def __init__(self):
     self.k8s = K8s()
   def create(self, params):
-      # Maybe a list of POD -> Create pod parallel
-    return self.k8s.create_pod(params)
-
+    # Maybe a list of POD -> Create pod parallel
+    vicsnets = [
+      { 'pod_name': 'pod1' },
+      { 'pod_name': 'pod2' }
+    ]
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+      executor.map(self.k8s.create_pod, vicsnets) 
+      return { }
 class GrpcClient:
   def __init__(self, nfd_agent_ip):
     with grpc.insecure_channel(
