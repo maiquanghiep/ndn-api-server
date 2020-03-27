@@ -33,7 +33,7 @@ class K8s:
             - nodeSelector 
         """
         container = self.client.V1Container(command=commands, image=container_image, env=envs, name=container_name, working_dir='/root')
-        node_selector = { "kubernechautes.io/hostname": node_selector } if node_selector else None
+        node_selector = { "kubernetes.io/hostname": node_selector } if node_selector else None
         body.spec = self.client.V1PodSpec(containers= [container], node_selector=node_selector)
 
         try:
