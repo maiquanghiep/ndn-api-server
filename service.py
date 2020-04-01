@@ -33,19 +33,29 @@ class VIcsnf:
       }
     ]
     """
-    vicsnfs = json.loads(params.get("vicsnfs")) if params.get("vicsnfs") else []
+    vnfs = json.loads(params.get("vnfs")) if params.get("vnfs") else []
     created_pods = []
-    for i in vicsnfs:
+    errmsg = ""
+
+    for i in vnfs:
       try:
         self.k8s.create_pod(i)
-        created_pods.append({"pod_name": i.get("pod_name"), "namespace": i.get("namespace") })
+        created_pods.append(i)
       except ApiException as e:
+        # Rollback created pod
         body = json.loads(e.body)
+        errmsg = body.get("message")
         for i in created_pods:
           self.k8s.delete_pod(i)
-        return  { "ack_code": "err", "ack_msg": body.get("message") }
+        created_pods = []
+        break  
 
-    return { "ack_code": "ok", "ack_msg": "Pods Created" }
+    return { 
+      "topology_id": params.get("topology_id"),
+      "result": "OK" if errmsg == "" else "ERROR",
+      "errmsg": errmsg,
+      "vnfs": list(map(lambda x: { "vnf_name": x.get("vnf_name"), "status": "created"}, created_pods))
+    }
     #with concurrent.futures.ProcessPoolExecutor() as executor:
     #  executor.map(self.k8s.create_pod, vicsnets) 
     #  return { }
