@@ -20,9 +20,9 @@ class K8s:
         node_selector = params.get('node_selector') if params.get('node_selector') else None
         is_vnc = params.get('is_vnc') if params.get('is_vnc') else False
 
-        if (is_vnc):
-            # TODO add is_vnc
-            break
+        #if (is_vnc):
+        # TODO add is_vnc
+
 
         # Create a body which stores the information of the pod to create
         body = self.client.V1Pod()
@@ -50,7 +50,7 @@ class K8s:
 
         except ApiException as e:
             raise
-        
+
     def delete_pod(self, params):
         vnf_name = params.get('vnf_name')
         namespace = params.get('namespace')
