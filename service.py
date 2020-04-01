@@ -153,19 +153,21 @@ class NfdFace:
 
       faces = i.get("faces") if i.get("faces") else []
       faces_deleted = []
-
       vnf_address = i.get("vnf_address") + ":50051" if i.get("vnf_address") else "localhost:50051"
-      grpc_client = GrpcClient(vnf_address)
+      with grpc.insecure_channel(
+          target= vnf_address,
+          options=[("grpc.enable_retries", 0),
+                    ("grpc.keepalive_timeout_ms", 10000)]) as channel:
+        grpc_client = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
+        for face in faces:
+          face_delete_req = nfd_agent_pb2.NFDFaceIDReq()
+          face_delete_req.faceid = int(face.get("link_id"))
 
-      for face in faces:
-        face_delete_req = nfd_agent_pb2.NFDFaceIDReq()
-        face_delete_req.faceid = face.get("link_id")
 
-
-        grpc_res = grpc_client.stub.NFDFaceDestroy(face_delete_req)
-        ack_msg = grpc_res.ack_msg
-        face_id = re.findall("id=(.*?) ", ack_msg)
-        faces_deleted.append({ "faceid": face_id, "status": "deleted" })
+          grpc_res = grpc_client.NFDFaceDestroy(face_delete_req)
+          ack_msg = grpc_res.ack_msg
+          face_id = re.findall("id=(.*?) ", ack_msg)
+          faces_deleted.append({ "faceid": face_id, "status": "deleted" })
       
       result_vnfs.append({
         "vnf_name": i.get("vnf_name"),
