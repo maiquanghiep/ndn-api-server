@@ -99,49 +99,53 @@ class NfdFace:
     result_vnfs = []
     for i in vnfs:
       vnf_address = i.get("vnf_address") + ":50051" if i.get("vnf_address") else "localhost:50051"
-      grpc_client = GrpcClient(vnf_address)
+      with grpc.insecure_channel(
+            target= vnf_address,
+            options=[("grpc.enable_retries", 0),
+                     ("grpc.keepalive_timeout_ms", 10000)]) as channel:
+        grpc_client = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
 
-      faces = i.get("faces") if i.get("faces") else []
-      faces_created = []
+        faces = i.get("faces") if i.get("faces") else []
+        faces_created = []
 
-      for face in faces:
-        face_create_req = nfd_agent_pb2.NFDFaceCreateReq()
-        if face.get("remote"):
-          face_create_req.remote = face.get("remote")
-        if face.get("persistency"):
-          face_create_req.persistency = face.get("persistency")
-        if face.get("local"):
-          face_create_req.local = face.get("local")
-        if face.get("reliability"):
-          face_create_req.reliability = face.get("reliability")
-        if face.get("congestion_marking"):
-          face_create_req.congestion_marking = face.get("congestion_marking")
-        if face.get("congestion_marking_interval"):
-          face_create_req.congestion_marking_interval = face.get("congestion_marking_interval")
-        if face.get("congestion_marking_interval"):
-          face_create_req.congestion_marking_interval = face.get("congestion_marking_interval")
-        if face.get("default_congestion_threshold"):
-          face_create_req.default_congestion_threshold = face.get("default_congestion_threshold")
-        if face.get("mtu"):
-          face_create_req.mtu = face.get("mtu")
+        for face in faces:
+          face_create_req = nfd_agent_pb2.NFDFaceCreateReq()
+          if face.get("remote"):
+            face_create_req.remote = face.get("remote")
+          if face.get("persistency"):
+            face_create_req.persistency = face.get("persistency")
+          if face.get("local"):
+            face_create_req.local = face.get("local")
+          if face.get("reliability"):
+            face_create_req.reliability = face.get("reliability")
+          if face.get("congestion_marking"):
+            face_create_req.congestion_marking = face.get("congestion_marking")
+          if face.get("congestion_marking_interval"):
+            face_create_req.congestion_marking_interval = face.get("congestion_marking_interval")
+          if face.get("congestion_marking_interval"):
+            face_create_req.congestion_marking_interval = face.get("congestion_marking_interval")
+          if face.get("default_congestion_threshold"):
+            face_create_req.default_congestion_threshold = face.get("default_congestion_threshold")
+          if face.get("mtu"):
+            face_create_req.mtu = face.get("mtu")
 
-        gpc_res = grpc_client.stub.NFDFaceCreate(face_create_req)
-        ack_msg = gpc_res.get("ack_msg")
-        face_id = re.findall("id=(.*?) ", ack_msg)
-        faces_created.append({ "remote": i.remote, "faceid": face_id })
+          gpc_res = grpc_client.NFDFaceCreate(face_create_req)
+          ack_msg = gpc_res.get("ack_msg")
+          face_id = re.findall("id=(.*?) ", ack_msg)
+          faces_created.append({ "remote": i.remote, "faceid": face_id })
+        
+        result_vnfs.append({
+          "vnf_name": i.get("vnf_name"),
+          "vnf_address": i.get("vnf_address"),
+          "faces": faces_created
+        })
       
-      result_vnfs.append({
-        "vnf_name": i.get("vnf_name"),
-        "vnf_address": i.get("vnf_address"),
-        "faces": faces_created
-      })
-    
-    return {
-      "id": params.get('id'),
-      "vnfs": result_vnfs,
-      "result": "OK",
-      "errmsg": ""
-    }
+      return {
+        "id": params.get('id'),
+        "vnfs": result_vnfs,
+        "result": "OK",
+        "errmsg": ""
+      }
 
   def delete(self, params):
     vnfs = json.loads(params.get("vnfs")) if params.get("vnfs") else []
