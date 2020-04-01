@@ -18,9 +18,13 @@ def create_vnf():
 def delete_vnf():
     return jsonify(VIcsnf().delete(request.form))
 
-@app.route('/nfd-face', methods=["POST"])
+@app.route('/createfaces', methods=["PUT"])
 def create_nfd_face():
     return jsonify(NfdFace().create(request.form))
+
+@app.route('/deletefaces', methods=["PUT"])
+def delete_nfd_face():
+    return jsonify(NfdFace().delete(request.form))
 
 @app.route('/nfd-route', methods=["POST"])
 def create_nfd_route():

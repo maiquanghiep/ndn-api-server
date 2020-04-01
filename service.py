@@ -6,7 +6,7 @@ import json
 from google.protobuf import empty_pb2
 import concurrent.futures
 from kubernetes.client.rest import ApiException
-
+import re
 class VIcsnf:
   def __init__(self):
     self.k8s = K8s()
@@ -95,32 +95,86 @@ class GrpcClient:
 
 class NfdFace:
   def create(self, params):
-    nfd_agent_ip = params.get("nfd_agent_ip") + ":50051" if params.get("nfd_agent_id") else "localhost:50051"
-    grpc_client = GrpcClient(nfd_agent_ip)
+    vnfs = json.loads(params.get("vnfs")) if params.get("vnfs") else []
+    result_vnfs = []
+    for i in vnfs:
+      vnf_address = i.get("vnf_address") + ":50051" if i.get("vnf_address") else "localhost:50051"
+      grpc_client = GrpcClient(vnf_address)
 
-    face_create_req = nfd_agent_pb2.NFDFaceCreateReq()
-    if params.get("remote"):
-      face_create_req.remote = params.get("remote")
-    if params.get("persistency"):
-      face_create_req.persistency = params.get("persistency")
-    if params.get("local"):
-      face_create_req.local = params.get("local")
-    if params.get("reliability"):
-      face_create_req.reliability = params.get("reliability")
-    if params.get("congestion_marking"):
-      face_create_req.congestion_marking = params.get("congestion_marking")
-    if params.get("congestion_marking_interval"):
-      face_create_req.congestion_marking_interval = params.get("congestion_marking_interval")
-    if params.get("congestion_marking_interval"):
-      face_create_req.congestion_marking_interval = params.get("congestion_marking_interval")
-    if params.get("default_congestion_threshold"):
-      face_create_req.default_congestion_threshold = params.get("default_congestion_threshold")
-    if params.get("mtu"):
-      face_create_req.mtu = params.get("mtu")
+      faces = i.get("faces") if i.get("faces") else []
+      faces_created = []
 
-    ack_replay = grpc_client.stub.NFDFaceCreate(face_create_req)
+      for face in faces:
+        face_create_req = nfd_agent_pb2.NFDFaceCreateReq()
+        if face.get("remote"):
+          face_create_req.remote = face.get("remote")
+        if face.get("persistency"):
+          face_create_req.persistency = face.get("persistency")
+        if face.get("local"):
+          face_create_req.local = face.get("local")
+        if face.get("reliability"):
+          face_create_req.reliability = face.get("reliability")
+        if face.get("congestion_marking"):
+          face_create_req.congestion_marking = face.get("congestion_marking")
+        if face.get("congestion_marking_interval"):
+          face_create_req.congestion_marking_interval = face.get("congestion_marking_interval")
+        if face.get("congestion_marking_interval"):
+          face_create_req.congestion_marking_interval = face.get("congestion_marking_interval")
+        if face.get("default_congestion_threshold"):
+          face_create_req.default_congestion_threshold = face.get("default_congestion_threshold")
+        if face.get("mtu"):
+          face_create_req.mtu = face.get("mtu")
+
+        gpc_res = grpc_client.stub.NFDFaceCreate(face_create_req)
+        ack_msg = gpc_res.get("ack_msg")
+        face_id = re.findall("id=(.*?) ", ack_msg)
+        faces_created.append({ "remote": i.remote, "faceid": face_id })
+      
+      result_vnfs.append({
+        "vnf_name": i.get("vnf_name"),
+        "vnf_address": i.get("vnf_address"),
+        "faces": faces_created
+      })
     
-    return response(ack_replay)
+    return {
+      "id": params.get('id'),
+      "vnfs": result_vnfs,
+      "result": "OK",
+      "errmsg": ""
+    }
+
+  def delete(self, params):
+    vnfs = json.loads(params.get("vnfs")) if params.get("vnfs") else []
+    result_vnfs = []
+    for i in vnfs:
+      vnf_address = i.get("vnf_address") + ":50051" if i.get("vnf_address") else "localhost:50051"
+      grpc_client = GrpcClient(vnf_address)
+
+      faces = i.get("faces") if i.get("faces") else []
+      faces_deleted = []
+
+      for face in faces:
+        face_delete_req = nfd_agent_pb2.NFDFaceIDReq()
+        face_delete_req.faceid = face.get("link_id")
+
+
+        gpc_res = grpc_client.stub.NFDFaceDestroy(face_delete_req)
+        ack_msg = gpc_res.get("ack_msg")
+        face_id = re.findall("id=(.*?) ", ack_msg)
+        faces_deleted.append({ "faceid": face_id, "status": "deleted" })
+      
+      result_vnfs.append({
+        "vnf_name": i.get("vnf_name"),
+        "vnf_address": i.get("vnf_address"),
+        "faces": faces_deleted
+      })
+    
+    return {
+      "id": params.get('id'),
+      "vnfs": result_vnfs,
+      "result": "OK",
+      "errmsg": ""
+    }
 
 class NfdRoute:
   def create(self, params):
