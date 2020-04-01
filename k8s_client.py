@@ -15,7 +15,7 @@ class K8s:
         network_ips = params.get('network_ips') if params.get('network_ips') else []
         image = params.get('image') if params.get('image') else "192.168.103.250:5000/icn-dtn-base-0.6.5:1.0"
         command = params.get('command') if params.get('command') else ["/bin/bash", "-c", "/root/start_vicsnf.sh; sleep 30d;"]
-        envs = params.get('envs')if params.get('envs') else []
+        envs = params.get('env')if params.get('env') else []
         envs = list(map(lambda x: self.client.V1EnvVar(x.get("name"), x.get("value")), envs))
         node_selector = params.get('node_selector') if params.get('node_selector') else None
         is_vnc = params.get('is_vnc') if params.get('is_vnc') else False
