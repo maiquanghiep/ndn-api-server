@@ -85,29 +85,25 @@ class VIcsnf:
       "vnfs": list(map(lambda x: { "vnf_name": x.get("vnf_name"), "status": "deleted"}, vnfs))
     }
 
-def create_grpc_connection(vnf_address):
+class GrpcClient:
+  def __init__(self, nfd_agent_ip):
     with grpc.insecure_channel(
-            target= vnf_address,
+            target= nfd_agent_ip,
             options=[("grpc.enable_retries", 0),
                      ("grpc.keepalive_timeout_ms", 10000)]) as channel:
-      return nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
+      self.stub = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
 
 class NfdFace:
   def create(self, params):
     vnfs = json.loads(params.get("vnfs")) if params.get("vnfs") else []
     result_vnfs = []
     for i in vnfs:
-      vnf_address = i.get("vnf_address") + ":50051" if i.get("vnf_address") else "localhost:50051"
-      # with grpc.insecure_channel(
-      #       target= vnf_address,
-      #       options=[("grpc.enable_retries", 0),
-      #                ("grpc.keepalive_timeout_ms", 10000)]) as channel:
-      #   grpc_client = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
-      grpc_client = create_grpc_connection(vnf_address)
       faces = i.get("faces") if i.get("faces") else []
       faces_created = []
 
       for face in faces:
+        vnf_address = i.get("vnf_address") + ":50051" if i.get("vnf_address") else "localhost:50051"
+        grpc_client = GrpcClient(vnf_address)
         face_create_req = nfd_agent_pb2.NFDFaceCreateReq()
         if face.get("remote"):
           face_create_req.remote = face.get("remote")
@@ -128,7 +124,7 @@ class NfdFace:
         if face.get("mtu"):
           face_create_req.mtu = face.get("mtu")
 
-        gpc_res = grpc_client.NFDFaceCreate(face_create_req)
+        gpc_res = grpc_client.stub.NFDFaceCreate(face_create_req)
         ack_msg = gpc_res.get("ack_msg")
         face_id = re.findall("id=(.*?) ", ack_msg)
         faces_created.append({ "remote": i.remote, "faceid": face_id })
@@ -150,19 +146,19 @@ class NfdFace:
     vnfs = json.loads(params.get("vnfs")) if params.get("vnfs") else []
     result_vnfs = []
     for i in vnfs:
-      vnf_address = i.get("vnf_address") + ":50051" if i.get("vnf_address") else "localhost:50051"
-      grpc_client = GrpcClient(vnf_address)
 
       faces = i.get("faces") if i.get("faces") else []
       faces_deleted = []
 
       for face in faces:
+        vnf_address = i.get("vnf_address") + ":50051" if i.get("vnf_address") else "localhost:50051"
+        grpc_client = GrpcClient(vnf_address)
         face_delete_req = nfd_agent_pb2.NFDFaceIDReq()
         face_delete_req.faceid = face.get("link_id")
 
 
-        gpc_res = grpc_client.stub.NFDFaceDestroy(face_delete_req)
-        ack_msg = gpc_res.get("ack_msg")
+        grpc_res = grpc_client.stub.NFDFaceDestroy(face_delete_req)
+        ack_msg = grpc_res.ack_msg
         face_id = re.findall("id=(.*?) ", ack_msg)
         faces_deleted.append({ "faceid": face_id, "status": "deleted" })
       
