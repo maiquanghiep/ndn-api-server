@@ -131,7 +131,7 @@ class NfdFace:
             grpc_res = grpc_client.NFDFaceCreate(face_create_req)
             ack_msg = grpc_res.ack_msg
             face_id = re.findall("id=(.*?) ", ack_msg)
-            faces_created.append({ "remote": i.remote, "faceid": face_id })
+            faces_created.append({ "remote": i.get("remote"), "faceid": face_id })
       
       result_vnfs.append({
         "vnf_name": i.get("vnf_name"),
@@ -154,9 +154,10 @@ class NfdFace:
       faces = i.get("faces") if i.get("faces") else []
       faces_deleted = []
 
+      vnf_address = i.get("vnf_address") + ":50051" if i.get("vnf_address") else "localhost:50051"
+      grpc_client = GrpcClient(vnf_address)
+
       for face in faces:
-        vnf_address = i.get("vnf_address") + ":50051" if i.get("vnf_address") else "localhost:50051"
-        grpc_client = GrpcClient(vnf_address)
         face_delete_req = nfd_agent_pb2.NFDFaceIDReq()
         face_delete_req.faceid = face.get("link_id")
 
