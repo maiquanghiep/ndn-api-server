@@ -10,9 +10,13 @@ app = Flask(__name__)
 def hello():
     return "Hello World!"
 
-@app.route('/vicsnf', methods=["POST"])
-def create_vicsnf():
+@app.route('/createvnfs', methods=["PUT"])
+def create_vnf():
     return jsonify(VIcsnf().create(request.form))
+
+@app.route('/deletevnfs', methods=["PUT"])
+def delete_vnf():
+    return jsonify(VIcsnf().delete(request.form))
 
 @app.route('/nfd-face', methods=["POST"])
 def create_nfd_face():

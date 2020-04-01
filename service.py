@@ -11,25 +11,24 @@ class VIcsnf:
   def __init__(self):
     self.k8s = K8s()
   def create(self, params):
-    # Maybe a list of POD -> Create pod parallel
     """ sample API
-    vicsnets = [
+    vnfs = [
       { 
-        "pod_name": "testpod",
+        "vnf_name": "testpod",
         "namespace": "vicsnet",
-        "container_name": "testpod",
-        "container_image": "192.168.103.250:5000/icn-dtn-base-0.6.5:1.0",
-        "commands":  ["/bin/bash", "-c", "/root/start_vicsnf.sh; sleep 30d;"],
-        "node_selector": "vicsnet-edge1",
-        "envs": [
+        "default_ip": "10.10.8.108",
+        "network_ips": [
+          {"name": "kuryr-ndn-99", "namespace": "default", "ips": ["10.10.99.99"]}
+        ],
+        "image": "192.168.103.250:5000/icn-dtn-base-0.6.5:1.0",
+        "command":  ["/bin/bash", "-c", "/root/start_vicsnf.sh; sleep 30d;"],
+        "env": [
           { 
             "name": "LC_ALL",
             "value": "C.UTF-8",
           }
-         ],
-        "annotations": {
-          "default_ip": "192.168.144.200"
-        }
+        ],
+        "node_selector": "vicsnet-edge1",
       }
     ]
     """
@@ -41,6 +40,7 @@ class VIcsnf:
       try:
         self.k8s.create_pod(i)
         created_pods.append(i)
+        print(created_pods)
       except ApiException as e:
         # Rollback created pod
         body = json.loads(e.body)
@@ -48,8 +48,8 @@ class VIcsnf:
         for i in created_pods:
           self.k8s.delete_pod(i)
         created_pods = []
-        break  
-
+        break
+  
     return { 
       "topology_id": params.get("topology_id"),
       "result": "OK" if errmsg == "" else "ERROR",
@@ -59,6 +59,31 @@ class VIcsnf:
     #with concurrent.futures.ProcessPoolExecutor() as executor:
     #  executor.map(self.k8s.create_pod, vicsnets) 
     #  return { }
+  #
+  def delete(self, params):
+    """ sample API
+    vnfs = [
+      { 
+        "vnf_name": "testpod",
+        "namespace": "vicsnet"
+      }
+    ]
+    """
+    vnfs = json.loads(params.get("vnfs")) if params.get("vnfs") else []
+    errmsg = ""
+    for i in vnfs:
+      try:
+        self.k8s.delete_pod(i)
+      except ApiException as e:
+        body = json.loads(e.body)
+        errmsg = body.get("message")
+
+    return { 
+      "topology_id": params.get("topology_id"),
+      "result": "OK" if errmsg == "" else "ERROR",
+      "errmsg": errmsg,
+      "vnfs": list(map(lambda x: { "vnf_name": x.get("vnf_name"), "status": "deleted"}, vnfs))
+    }
 
 class GrpcClient:
   def __init__(self, nfd_agent_ip):

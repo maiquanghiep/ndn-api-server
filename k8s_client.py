@@ -1,7 +1,7 @@
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 # Configs can be set in Configuration class directly or using helper utility
-
+import json
 
 class K8s:
     def __init__(self):
@@ -30,9 +30,10 @@ class K8s:
         # Specify meta of a POD.
         annotations = {}
         if default_ip:
-            annotations.default_ip = default_ip
+            annotations['default_ip'] = default_ip
         if len(network_ips):
-            annotations['k8s.v1.cni.cncf.io/networks'] = network_ips
+            annotations['k8s.v1.cni.cncf.io/networks'] = str(network_ips)
+        print(annotations)
         body.metadata = client.V1ObjectMeta(namespace=namespace, name=vnf_name, annotations= annotations)
 
         """
