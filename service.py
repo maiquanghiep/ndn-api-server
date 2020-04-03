@@ -250,7 +250,7 @@ class NfdRoute:
       if grpc_res.ack.ack_code == 'ok':
         for fib in fib_list:
           prefix, nexthop, cost = ['','','']
-          keys = fib.split('')
+          keys = fib.split()
           for key in keys:
             if 'prefix=' in key:
               prefix = key[len('prefix='):]
@@ -313,7 +313,7 @@ class NFDStrategy:
       if grpc_res.ack.ack_code == 'ok':
         for item in strategy_list:
           prefix, strategy = ['','']
-          keys = item.split('')
+          keys = item.split()
           for key in keys:
             if 'prefix=' in key:
               prefix = key[len('prefix='):]

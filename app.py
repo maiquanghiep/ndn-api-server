@@ -40,7 +40,7 @@ def create_nfd_route():
 
 @app.route('/api/strategylist/<ip>', methods=["GET"])
 def get_nfd_stragegy(ip):
-    return jsonify(NfdRoute().get(ip))
+    return jsonify(NFDStrategy().get(ip))
 
 if __name__ == '__main__':
     app.run()
