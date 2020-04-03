@@ -18,7 +18,6 @@ def create_vnf():
 def get_vnf(namespace, vnf_name):
     return VIcsnf().get(namespace, vnf_name)
 
-
 @app.route('/deletevnfs', methods=["PUT"])
 def delete_vnf():
     return jsonify(VIcsnf().delete(request.form))
@@ -26,6 +25,12 @@ def delete_vnf():
 @app.route('/createfaces', methods=["PUT"])
 def create_nfd_face():
     return jsonify(NfdFace().create(request.form))
+
+@app.route('/api/facelist/<ip>', methods=["GET"])
+def get_nfd_face(ip):
+    return jsonify(NfdFace().get(ip))
+
+
 
 @app.route('/deletefaces', methods=["PUT"])
 def delete_nfd_face():

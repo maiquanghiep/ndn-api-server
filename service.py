@@ -161,6 +161,24 @@ class NfdFace:
       "errmsg": ""
     }
 
+  def get(self, ip):
+    with grpc.insecure_channel(
+          target= ip,
+          options=[("grpc.enable_retries", 0),
+                    ("grpc.keepalive_timeout_ms", 10000)]) as channel:
+      grpc_client = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
+
+      grpc_res = grpc_client.NFDFaceList(nfd_agent_pb2.NFDFaceIDReq(faceid=0))
+      faces = grpc_res.faces
+      result = []
+
+      if grpc_res.ack.ack_code == 'ok':
+        result= list(map(lambda f: { "faceid": f.faceid, "remote": f.remote, "local": f.local}), faces)
+        
+      return {
+        "faces": result
+      }
+
   def delete(self, params):
     vnfs = json.loads(params.get("vnfs")) if params.get("vnfs") else []
     result_vnfs = []
