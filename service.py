@@ -234,7 +234,7 @@ class NfdRoute:
 
     ack_replay = grpc_client.stub.NFDRouteAdd(route_req)
     
-    return response(ack_replay)
+    return ack_replay
 
   def get(self, ip):
     with grpc.insecure_channel(
