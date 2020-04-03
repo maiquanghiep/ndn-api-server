@@ -163,7 +163,7 @@ class NfdFace:
 
   def get(self, ip):
     with grpc.insecure_channel(
-          target= ip,
+          target= ip + ":50051",
           options=[("grpc.enable_retries", 0),
                     ("grpc.keepalive_timeout_ms", 10000)]) as channel:
       grpc_client = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
@@ -173,7 +173,7 @@ class NfdFace:
       result = []
 
       if grpc_res.ack.ack_code == 'ok':
-        result= list(map(lambda f: { "faceid": f.faceid, "remote": f.remote, "local": f.local}), faces)
+        result= list(map(lambda f: { "faceid": f.faceid, "remote": f.remote, "local": f.local},faces))
         
       return {
         "faces": result
