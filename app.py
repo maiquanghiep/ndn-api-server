@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from service import VIcsnf, NfdFace, NfdRoute
+from service import VIcsnf, NfdFace, NfdRoute, NFDStrategy
 
 import json
 
