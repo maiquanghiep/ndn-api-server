@@ -30,8 +30,6 @@ def create_nfd_face():
 def get_nfd_face(ip):
     return jsonify(NfdFace().get(ip))
 
-
-
 @app.route('/deletefaces', methods=["PUT"])
 def delete_nfd_face():
     return jsonify(NfdFace().delete(request.form))
@@ -39,6 +37,10 @@ def delete_nfd_face():
 @app.route('/nfd-route', methods=["POST"])
 def create_nfd_route():
     return jsonify(NfdRoute().create(request.form))
+
+@app.route('/api/strategylist/<ip>', methods=["GET"])
+def get_nfd_stragegy(ip):
+    return jsonify(NfdRoute().get(ip))
 
 if __name__ == '__main__':
     app.run()

@@ -236,6 +236,34 @@ class NfdRoute:
     
     return response(ack_replay)
 
+  def get(self, ip):
+    with grpc.insecure_channel(
+          target= ip + ":50051",
+          options=[("grpc.enable_retries", 0),
+                    ("grpc.keepalive_timeout_ms", 10000)]) as channel:
+      grpc_client = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
+
+      grpc_res = grpc_client.NFDRouteList(nfd_agent_pb2.NFDRouteListReq(nexthop='0', origin=''))
+      fib_list = grpc_res.route
+      result = []
+
+      if grpc_res.ack.ack_code == 'ok':
+        for fib in fib_list:
+          prefix, nexthop, cost = ['','','']
+          keys = fib.split('')
+          for key in keys:
+            if 'prefix=' in key:
+              prefix = key[len('prefix='):]
+            if 'nexthop=' in key:
+              nexthop = key[len('nexthop='):]
+            if 'cost=' in key:
+              cost = key[len('cost='):]
+          result.append({ "prefix": prefix, "nexthops": nexthop, "cost": cost })
+        
+      return {
+        "fib_list": result
+      }
+
 class NfdNameTemplate:
   def create(self, params):
    template = json.loads(params.get("template")) if params.get("template") else []
@@ -269,5 +297,31 @@ class NfdNameTemplate:
   #   "result": "OK",
   #   "errmsg": ""
   # }
-def response(ack_replay):
-  return { "ack_code": ack_replay.ack_code, "ack_msg": ack_replay.ack_msg }
+
+class NFDStrategy:
+  def get(self, ip):
+    with grpc.insecure_channel(
+          target= ip + ":50051",
+          options=[("grpc.enable_retries", 0),
+                    ("grpc.keepalive_timeout_ms", 10000)]) as channel:
+      grpc_client = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
+
+      grpc_res = grpc_client.NFDStrategyList(empty_pb2.Empty())
+      strategy_list = grpc_res.strategies
+      result = []
+
+      if grpc_res.ack.ack_code == 'ok':
+        for item in strategy_list:
+          prefix, strategy = ['','']
+          keys = item.split('')
+          for key in keys:
+            if 'prefix=' in key:
+              prefix = key[len('prefix='):]
+            if 'strategy=' in key:
+              strategy = key[len('strategy='):]
+          result.append({ "prefix": prefix, "strategy": strategy })
+        
+      return {
+        "strategy_list": result
+      }
+    
