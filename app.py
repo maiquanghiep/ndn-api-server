@@ -14,6 +14,11 @@ def hello():
 def create_vnf():
     return jsonify(VIcsnf().create(request.form))
 
+@app.route('/api/vnf_info/<namespace>/<vnf_name>', methods=["GET"])
+def get_vnf(namespace, vnf_name):
+    return VIcsnf().get(namespace, vnf_name)
+
+
 @app.route('/deletevnfs', methods=["PUT"])
 def delete_vnf():
     return jsonify(VIcsnf().delete(request.form))

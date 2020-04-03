@@ -84,6 +84,21 @@ class VIcsnf:
       "errmsg": errmsg,
       "vnfs": list(map(lambda x: { "vnf_name": x.get("vnf_name"), "status": "deleted"}, vnfs))
     }
+  
+  def get(self, namespace, vnf_name):
+    vnf_res = self.k8s.get_pod(namespace, vnf_name)
+    have_pod = bool(len(vnf_res.spec.containers))
+    return {
+      "vnf_name": vnf_res.metadata.name,
+      "namespace": vnf_res.metadata.namespace,
+      "default_ip": vnf_res.metadata.annotations.get('default_ip'),
+      "network_ips": json.loads(vnf_res.metadata.annotations.get('k8s.v1.cni.cncf.io/networks').replace("\'", "\"")) if vnf_res.metadata.annotations.get('k8s.v1.cni.cncf.io/networks') else [],
+      "image": vnf_res.spec.containers[0].image if have_pod else "",
+      "env":  list(map(lambda x: { "name": x.name, "value": x.value },vnf_res.spec.containers[0].env)) if (have_pod & (vnf_res.spec.containers[0].env is not None))  else [],
+      "command": vnf_res.spec.containers[0].command if have_pod else [],
+      "node_selector": vnf_res.spec.node_selector.get("kubernetes.io/hostname") if have_pod & (vnf_res.spec.node_selector is not None) else "",
+      "is_vnc": True
+    }
 
 class GrpcClient:
   def __init__(self, nfd_agent_ip):
@@ -203,19 +218,38 @@ class NfdRoute:
     
     return response(ack_replay)
 
-class NfdStrategy:
+class NfdNameTemplate:
   def create(self, params):
-    nfd_agent_ip = params.get("nfd_agent_ip") + ":50051" if params.get("nfd_agent_id") else "localhost:50051"
-    grpc_client = GrpcClient(nfd_agent_ip)
+   template = json.loads(params.get("template")) if params.get("template") else []
     
-    strategy_req = nfd_agent_pb2.NFDStrategyReq()
-    if params.get("prefix"):
-      strategy_req.prefix = params.get("prefix")
-    if params.get("strategy"):
-      strategy_req.strategy = params.get("strategy")
+  # result_route = []
+  # for i in vnfs:
+  #   routes = i.get("route_add") if i.get("route_add") else []
+  #   routes_added = []
+  #   vnf_address = i.get("vnf_address") + ":50051" if i.get("vnf_address") else "localhost:50051"
+  #   with grpc.insecure_channel(
+  #       target= vnf_address,
+  #       options=[("grpc.enable_retries", 0),
+  #                 ("grpc.keepalive_timeout_ms", 10000)]) as channel:
+  #     grpc_client = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
+  #     for route in routes:
+  #         route_create_req = nfd_agent_pb2.NFDRouteReq()
+  #         if route.get("prefix"):
+  #           route_create_req.remote = route.get("prefix")
+  #         if route.get("nexthop"):
+  #           route_create_req.persistency = route.get("nexthop")
 
-    ack_replay = grpc_client.stub.NFDStrategySet(strategy_req)
-    return response(ack_replay)
-
+  #         grpc_res = grpc_client.NFDRouteAdd(face_create_req)
+  #         ack_msg = grpc_res.ack_msg
+  #         face_id = re.findall("id=(.*?) ", ack_msg)
+  #         faces_created.append({ "remote": i.get("remote"), "faceid": face_id })
+    
+  
+  # return {
+  #   "id": params.get('id'),
+  #   "vnfs": result_vnfs,
+  #   "result": "OK",
+  #   "errmsg": ""
+  # }
 def response(ack_replay):
   return { "ack_code": ack_replay.ack_code, "ack_msg": ack_replay.ack_msg }

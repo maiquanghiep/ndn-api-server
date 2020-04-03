@@ -33,7 +33,6 @@ class K8s:
             annotations['default_ip'] = default_ip
         if len(network_ips):
             annotations['k8s.v1.cni.cncf.io/networks'] = str(network_ips)
-        print(annotations)
         body.metadata = client.V1ObjectMeta(namespace=namespace, name=vnf_name, annotations= annotations)
 
         """
@@ -57,5 +56,10 @@ class K8s:
         namespace = params.get('namespace')
         try:
             self.v1Api.delete_namespaced_pod(name=vnf_name, namespace= namespace)
+        except ApiException as e:
+            raise
+    def get_pod(self, namespace, vnf_name):
+        try:
+            return self.v1Api.read_namespaced_pod(namespace=namespace, name=vnf_name)
         except ApiException as e:
             raise
