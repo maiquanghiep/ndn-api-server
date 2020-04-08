@@ -42,5 +42,9 @@ def create_nfd_route():
 def get_nfd_stragegy(ip):
     return jsonify(NFDStrategy().get(ip))
 
+@app.route('/api/fiblist/<ip>', methods=["GET"])
+def get_nfd_fib(ip):
+    return jsonify(NfdRoute().get(ip))
+
 if __name__ == '__main__':
     app.run()
