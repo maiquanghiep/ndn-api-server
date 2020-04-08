@@ -86,9 +86,16 @@ class VIcsnf:
     }
   
   def get(self, namespace, vnf_name):
-    vnf_res = self.k8s.get_pod(namespace, vnf_name)
-    have_pod = bool(len(vnf_res.spec.containers))
-    return {
+    vnf_res = {}
+    errmsg = ""
+    try: 
+      vnf_res = self.k8s.get_pod(namespace, vnf_name)
+    except ApiException as e:
+      body = json.loads(e.body)
+      errmsg = body.get("message")
+
+    have_pod = bool(vnf_res)
+    vnf_info = {
       "vnf_name": vnf_res.metadata.name,
       "namespace": vnf_res.metadata.namespace,
       "default_ip": vnf_res.metadata.annotations.get('default_ip'),
@@ -98,6 +105,11 @@ class VIcsnf:
       "command": vnf_res.spec.containers[0].command if have_pod else [],
       "node_selector": vnf_res.spec.node_selector.get("kubernetes.io/hostname") if have_pod & (vnf_res.spec.node_selector is not None) else "",
       "is_vnc": True
+    } if have_pod else {}
+    return {
+      "vnf": vnf_info,
+      "error": errmsg,
+      "result": "OK" if have_pod else "ERROR"
     }
 
 class GrpcClient:
