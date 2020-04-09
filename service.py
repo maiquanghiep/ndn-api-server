@@ -101,9 +101,9 @@ class VIcsnf:
       container = vnf_res.spec.containers[0] if len(vnf_res.spec.containers) else {}
 
       # port is nested in container["readiness"]["http_get"]["port"]
-      readiness_probe = container.readiness_probe if container.readiness_probe else {}
-      http_get = readiness_probe.http_get if readiness_probe.http_get else {}
-      port = http_get.get("port", 0)
+      readiness_probe = container.readiness_probe if container.readiness_probe else None
+      http_get = readiness_probe.http_get if readiness_probe else None
+      port = http_get.port if http_get else None
       is_vnc = bool(port)
       vnf_info = {
         "vnf_name": vnf_res.metadata.name,
