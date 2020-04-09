@@ -95,17 +95,27 @@ class VIcsnf:
       errmsg = body.get("message")
 
     have_pod = bool(vnf_res)
-    vnf_info = {
-      "vnf_name": vnf_res.metadata.name,
-      "namespace": vnf_res.metadata.namespace,
-      "default_ip": vnf_res.metadata.annotations.get('default_ip'),
-      "network_ips": json.loads(vnf_res.metadata.annotations.get('k8s.v1.cni.cncf.io/networks').replace("\'", "\"")) if vnf_res.metadata.annotations.get('k8s.v1.cni.cncf.io/networks') else [],
-      "image": vnf_res.spec.containers[0].image if have_pod else "",
-      "env":  list(map(lambda x: { "name": x.name, "value": x.value },vnf_res.spec.containers[0].env)) if (have_pod & (vnf_res.spec.containers[0].env is not None))  else [],
-      "command": vnf_res.spec.containers[0].command if have_pod else [],
-      "node_selector": vnf_res.spec.node_selector.get("kubernetes.io/hostname") if have_pod & (vnf_res.spec.node_selector is not None) else "",
-      "is_vnc": True
-    } if have_pod else {}
+    vnf_info = {}
+
+    if (have_pod):
+      container = vnf_res.spec.containers[0] if len(vnf_res.spec.containers) else {}
+
+      # port is nested in container["readiness"]["http_get"]["port"]
+      readiness_probe = container.readiness_probe if container.readiness_probe else {}
+      http_get = readiness_probe.http_get if readiness_probe.http_get else {}
+      port = http_get.get("port", 0)
+      is_vnc = bool(port)
+      vnf_info = {
+        "vnf_name": vnf_res.metadata.name,
+        "namespace": vnf_res.metadata.namespace,
+        "default_ip": vnf_res.metadata.annotations.get('default_ip'),
+        "network_ips": json.loads(vnf_res.metadata.annotations.get('k8s.v1.cni.cncf.io/networks').replace("\'", "\"")) if vnf_res.metadata.annotations.get('k8s.v1.cni.cncf.io/networks') else [],
+        "image": vnf_res.spec.containers[0].image if have_pod else "",
+        "env":  list(map(lambda x: { "name": x.name, "value": x.value },vnf_res.spec.containers[0].env)) if (have_pod & (vnf_res.spec.containers[0].env is not None))  else [],
+        "command": vnf_res.spec.containers[0].command if have_pod else [],
+        "node_selector": vnf_res.spec.node_selector.get("kubernetes.io/hostname") if have_pod & (vnf_res.spec.node_selector is not None) else "",
+        "is_vnc": is_vnc
+      }
     return {
       "vnf": vnf_info,
       "error": errmsg,
