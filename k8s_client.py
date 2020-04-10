@@ -20,9 +20,6 @@ class K8s:
         node_selector = params.get('node_selector') if params.get('node_selector') else None
         is_vnc = params.get('is_vnc') if params.get('is_vnc') else False
 
-        #if (is_vnc):
-        # TODO add is_vnc
-
 
         # Create a body which stores the information of the pod to create
         body = self.client.V1Pod()
@@ -39,8 +36,20 @@ class K8s:
          Specify spec including: 
             - containers (name, image, env, command) https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/V1Container.md 
             - nodeSelector 
+            - V1Probe (is_vnc = true)
+            - security_context (is_vnc = true)
         """
-        container = self.client.V1Container(command=command, image=image, env=envs, name=vnf_name, working_dir='/root')
+        readiness_probe = None
+        security_context = None
+        if (is_vnc):
+            PORT = 6901
+            PATH = "/"
+            SCHEME = "HTTP"
+            http_get = client.V1HTTPGetAction(port= PORT, path= PATH, scheme= SCHEME)
+            readiness_probe = client.V1Probe(http_get= http_get, initial_delay_seconds= 1, timeout_seconds= 1)
+            security_context = client.V1SecurityContext(run_as_user=0, privileged= True )
+
+        container = self.client.V1Container(command=command, image=image, env=envs, name=vnf_name, working_dir='/root', security_context= security_context, readiness_probe= readiness_probe)
         node_selector = { "kubernetes.io/hostname": node_selector } if node_selector else None
         body.spec = self.client.V1PodSpec(containers= [container], node_selector=node_selector)
 
