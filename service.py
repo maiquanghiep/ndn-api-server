@@ -239,24 +239,42 @@ class NfdFace:
 
 class NfdRoute:
   def create(self, params):
-    nfd_agent_ip = params.get("nfd_agent_ip") + ":50051" if params.get("nfd_agent_id") else "localhost:50051"
-    grpc_client = GrpcClient(nfd_agent_ip)
-    
-    route_req = nfd_agent_pb2.NFDRouteReq()
-    if params.get("prefix"):
-      route_req.prefix = params.get("prefix")
-    if params.get("nexthop"):
-      route_req.nexthop = params.get("nexthop")
-    if params.get("origin"):
-      route_req.origin = params.get("origin")
-    if params.get("cost"):
-      route_req.cost = params.get("cost")
-    if params.get("expires"):
-      route_req.expires = params.get("expires")
+    templates = json.loads(params.get("templates")) if params.get("templates") else []
+    errmsg = ""
+    for template in templates:
+      vnf_ip = template.get("vnf_ip") + ":50051" if template.get("vnf_ip") else "localhost:50051"
+      with grpc.insecure_channel(
+        target= vnf_ip + ":50051",
+        options=[("grpc.enable_retries", 0),
+                  ("grpc.keepalive_timeout_ms", 10000)]) as channel:
+        
+        routes = template.get("route_add", [])
+        grpc_client = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
+        for route in routes:
+          route_req = nfd_agent_pb2.NFDRouteReq()
+          if route.get("prefix"):
+            route_req.prefix = route.get("prefix")
+          if route.get("nexthop"):
+            route_req.nexthop = route.get("nexthop")
+          if route.get("origin"):
+            route_req.origin = route.get("origin")
+          if route.get("cost"):
+            route_req.cost = route.get("cost")
+          if route.get("expires"):
+            route_req.expires = route.get("expires")
+              
+          grpc_res = grpc_client.NFDRouteAdd(route_req)
+          ack_code = grpc_res.ack_code
 
-    ack_replay = grpc_client.stub.NFDRouteAdd(route_req)
-    
-    return ack_replay
+          errmsg = grpc_res.ack_msg
+          if ack_code == "err":
+            break
+          
+    return {
+      "id": params.get('id'),
+      "result": "OK" if not errmsg else "ERROR",
+      "errmsg": errmsg
+    }
 
   def get(self, ip):
     with grpc.insecure_channel(
