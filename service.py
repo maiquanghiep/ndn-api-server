@@ -244,7 +244,7 @@ class NfdRoute:
     for template in templates:
       vnf_ip = template.get("vnf_ip") + ":50051" if template.get("vnf_ip") else "localhost:50051"
       with grpc.insecure_channel(
-        target= vnf_ip + ":50051",
+        target= vnf_ip,
         options=[("grpc.enable_retries", 0),
                   ("grpc.keepalive_timeout_ms", 10000)]) as channel:
         
