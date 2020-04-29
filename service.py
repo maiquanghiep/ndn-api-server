@@ -395,3 +395,28 @@ class NFDStrategy:
       "result": "OK" if not errmsg else "ERROR",
       "errmsg": errmsg
     }
+  def unset(self, params):
+    vnf_ip = params.get("vnf_ip") + ":50051" if params.get("vnf_ip") else "localhost:50051"
+    strategy_unset = params.get("strategy_unset", [])
+    errmsg = ""
+    with grpc.insecure_channel(
+      target= vnf_ip,
+      options=[("grpc.enable_retries", 0),
+                ("grpc.keepalive_timeout_ms", 10000)]) as channel:
+    
+      grpc_client = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
+      for strategy in strategy_unset:
+        strategy_req = nfd_agent_pb2.NFDStrategyReq()
+        if strategy.get("prefix"):
+          strategy_req.prefix = strategy.get("prefix")
+          grpc_res = grpc_client.NFDStrategyUnset(strategy_req)
+          ack_code = grpc_res.ack_code
+
+          if ack_code == "err":
+            errmsg = grpc_res.ack_msg
+            break
+      return {
+        "vnf_ip": params.get('vnf_ip'),
+        "result": "OK" if not errmsg else "ERROR",
+        "errmsg": errmsg
+      }
