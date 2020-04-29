@@ -364,4 +364,34 @@ class NFDStrategy:
       return {
         "strategy_list": result
       }
-    
+  def create(self,params):
+    templates = json.loads(params.get("templates")) if params.get("templates") else []
+    errmsg = ""
+    for template in templates:
+      vnf_ip = template.get("vnf_ip") + ":50051" if template.get("vnf_ip") else "localhost:50051"
+      with grpc.insecure_channel(
+        target= vnf_ip,
+        options=[("grpc.enable_retries", 0),
+                  ("grpc.keepalive_timeout_ms", 10000)]) as channel:
+        
+        strtegies = template.get("strategy_set", [])
+        grpc_client = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
+        for strategy in strtegies:
+          strategy_req = nfd_agent_pb2.NFDStrategyReq()
+          if strategy.get('prefix'):
+              strategy_req.prefix = strategy.get('prefix')
+          if strategy.get('strategyname'):
+              strategy_req.strategy = strategy.get('strategyname')
+              
+          grpc_res = grpc_client.NFDStrategySet(strategy_req)
+          ack_code = grpc_res.ack_code
+
+          if ack_code == "err":
+            errmsg = grpc_res.ack_msg
+            break
+          
+    return {
+      "id": params.get('id'),
+      "result": "OK" if not errmsg else "ERROR",
+      "errmsg": errmsg
+    }
