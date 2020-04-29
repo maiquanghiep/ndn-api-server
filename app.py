@@ -49,7 +49,7 @@ def delete_nfd_face():
     Get Face by IP
 """
 
-@app.route('/api/createroute', methods=["POST"])
+@app.route('/api/createroute', methods=["PUT"])
 def create_nfd_route():
     return jsonify(NfdRoute().create(request.form))
 

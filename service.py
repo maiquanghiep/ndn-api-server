@@ -266,8 +266,8 @@ class NfdRoute:
           grpc_res = grpc_client.NFDRouteAdd(route_req)
           ack_code = grpc_res.ack_code
 
-          errmsg = grpc_res.ack_msg
           if ack_code == "err":
+            errmsg = grpc_res.ack_msg
             break
           
     return {
