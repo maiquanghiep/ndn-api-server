@@ -63,7 +63,7 @@ def get_nfd_fib(ip):
 @app.route('/api/strategyset', methods=["PUT"])
 def set_strategy():
     return jsonify(NFDStrategy().create(request.form))
-@app.route('/api/strategyset', methods=["PUT"])
+@app.route('/api/strategyunset', methods=["PUT"])
 def unset_strategy():
     return jsonify(NFDStrategy().unset(request.form))
 @app.route('/api/strategylist/<ip>', methods=["GET"])
