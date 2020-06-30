@@ -26,6 +26,9 @@
 # python nfd_client.py --strategy show --prefix /localhost
 # python nfd_client.py --strategy set --prefix /localhost --strategyname /localhost/nfd/strategy/best-route/%FD%05
 # python nfd_client.py --strategy unset --prefix /localhost
+# python nfd_client.py --strategy unset --prefix /localhost
+# python nfd_client.py --advertise set --mode advertise --prefix /test/test/1
+# python nfd_client.py --lsdb list
 
 from __future__ import print_function
 import logging
@@ -253,11 +256,36 @@ def nfd_strategy_unset(nfd_stup, **kwargs):
         print("=>%s" % ack_replay.ack_msg)
 
 
+def nlsr_advertise_name(nfd_stup, **kwargs):
+    advertise_req = nfd_agent_pb2.NLSRAdvertiseReq()
+    if kwargs.get('mode'):
+        advertise_req.mode = kwargs.get('mode')
+    if kwargs.get('prefix'):
+        advertise_req.prefix = kwargs.get('prefix')
+    if kwargs.get('save'):
+        advertise_req.save = kwargs.get('save')
 
 
+    ack_replay = nfd_stup.NLSRAdvertiseName(advertise_req)
+    if ack_replay.ack_code == 'ok':
+        print("nlsr advertise information")
+        print("=>%s" % ack_replay.ack_msg)
+    else:
+        print("Failed to nlsr advertise information")
+        print("=>%s" % ack_replay.ack_msg)
 
-
-
+def nlsr_lsdb_list(nfd_stup, **kwargs):
+    lsdb_list = nfd_stup.NLSRLsdbList(empty_pb2.Empty())
+    
+    if lsdb_list.ack.ack_code == 'ok':
+        if len(lsdb_list.lsdbs) > 0:
+            for item in lsdb_list.lsdbs:
+                print("lsdb ==>%s" % item)
+        else:
+            print("No lsdb information")
+    else:
+        print("Failed to lsdb information")
+        print("=>%s" % lsdb_list.ack.ack_msg)
 
 
 def client_to_agent(command_opt, **kwargs):
@@ -310,6 +338,13 @@ def client_to_agent(command_opt, **kwargs):
         elif command_opt == 'strategy unset':
             nfd_strategy_unset(nfd_stup=stub, **kwargs)
 
+        #############################
+        ## nlsr advertise or withdraw
+        elif command_opt == 'advertise name':
+            nlsr_advertise_name(nfd_stup=stub, **kwargs)
+        elif command_opt == 'lsdb list':
+            nlsr_lsdb_list(nfd_stup=stub, **kwargs)
+
         else:
             print("Currently, %s command is not support" % command_opt)
 
@@ -352,6 +387,13 @@ if __name__ == '__main__':
     ## strategy command
     parser.add_argument('--strategy', required=False, help='strategy list or [show set unset] --prefix [PREFIX]')
     parser.add_argument('--strategyname', required=False, help='set ... strategy <STRATEGY>')
+    ###########################
+    ## nlsrc command
+    parser.add_argument('--advertise', required=False, help='set')
+    parser.add_argument('--mode', required=False, help='advertise|withdraw')
+    parser.add_argument('--save', required=False, help='save|delete')
+    parser.add_argument('--lsdb', required=False, help='list')
+    ###########################
     args = parser.parse_args()
     #print(args.__dict__)
 
@@ -432,6 +474,17 @@ if __name__ == '__main__':
             client_to_agent(command_opt='strategy unset', prefix=args.prefix)
         else:
             print('need prefix : --prefix [PREFIX]')
+
+    ###########################
+    ## nlsrc command
+    elif args.advertise == 'set':
+        if args.mode: mode = args.mode
+        if args.prefix: prefix = args.prefix
+        save = ''
+        if args.save: save = args.save
+        client_to_agent(command_opt='advertise name', mode=mode, prefix=prefix, save=save)
+    elif args.lsdb == 'list':
+        client_to_agent(command_opt='lsdb list')
 
     else:
         print('usage: python nfd_client.py -h')

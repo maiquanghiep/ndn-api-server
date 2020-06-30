@@ -7,6 +7,8 @@ from google.protobuf import empty_pb2
 import concurrent.futures
 from kubernetes.client.rest import ApiException
 import re
+
+
 class VIcsnf:
   def __init__(self):
     self.k8s = K8s()
@@ -32,15 +34,14 @@ class VIcsnf:
       }
     ]
     """
-    vnfs = json.loads(params.get("vnfs")) if params.get("vnfs") else []
+    vnfs = params.get("vnfs") if params.get("vnfs") else []
     created_pods = []
     errmsg = ""
-
     for i in vnfs:
       try:
         self.k8s.create_pod(i)
         created_pods.append(i)
-        print(created_pods)
+        # print(created_pods)
       except ApiException as e:
         # Rollback created pod
         body = json.loads(e.body)
@@ -69,7 +70,8 @@ class VIcsnf:
       }
     ]
     """
-    vnfs = json.loads(params.get("vnfs")) if params.get("vnfs") else []
+    ##vnfs = json.loads(params.get("vnfs")) if params.get("vnfs") else []
+    vnfs = params.get("vnfs") if params.get("vnfs") else []
     errmsg = ""
     for i in vnfs:
       try:
@@ -99,7 +101,10 @@ class VIcsnf:
 
     if (have_pod):
       container = vnf_res.spec.containers[0] if len(vnf_res.spec.containers) else {}
-
+      
+      # status
+      status = vnf_res.status.phase
+      
       # port is nested in container["readiness"]["http_get"]["port"]
       readiness_probe = container.readiness_probe if container.readiness_probe else None
       http_get = readiness_probe.http_get if readiness_probe else None
@@ -114,7 +119,8 @@ class VIcsnf:
         "env":  list(map(lambda x: { "name": x.name, "value": x.value },vnf_res.spec.containers[0].env)) if (have_pod & (vnf_res.spec.containers[0].env is not None))  else [],
         "command": vnf_res.spec.containers[0].command if have_pod else [],
         "node_selector": vnf_res.spec.node_selector.get("kubernetes.io/hostname") if have_pod & (vnf_res.spec.node_selector is not None) else "",
-        "is_vnc": is_vnc
+        "is_vnc": is_vnc,
+        "status": status
       }
     return {
       "vnf": vnf_info,
@@ -132,7 +138,8 @@ class GrpcClient:
 
 class NfdFace:
   def create(self, params):
-    vnfs = json.loads(params.get("vnfs")) if params.get("vnfs") else []
+    #vnfs = json.loads(params.get("vnfs")) if params.get("vnfs") else []
+    vnfs = params.get("vnfs") if params.get("vnfs") else []
     result_vnfs = []
 
     for i in vnfs:
@@ -164,8 +171,17 @@ class NfdFace:
               face_create_req.default_congestion_threshold = face.get("default_congestion_threshold")
             if face.get("mtu"):
               face_create_req.mtu = face.get("mtu")
-
+            if face.get("neighbor_hostname"):
+              face_create_req.neighbor_hostname = face.get("neighbor_hostname")
+            if face.get("neighbor_ip"):
+              face_create_req.neighbor_ip = face.get("neighbor_ip")
+            if face.get("neighbor_site_route"):
+              face_create_req.neighbor_site_route = face.get("neighbor_site_route")
+              
+            #print(face_create_req)
             grpc_res = grpc_client.NFDFaceCreate(face_create_req)
+            #print(grpc_res)
+            
             ack_msg = grpc_res.ack_msg
             face_id = re.findall("id=(.*?) ", ack_msg)
             faces_created.append({ "remote": i.get("remote"), "faceid": face_id })
@@ -202,13 +218,15 @@ class NfdFace:
       }
 
   def delete(self, params):
-    vnfs = json.loads(params.get("vnfs")) if params.get("vnfs") else []
+    #vnfs = json.loads(params.get("vnfs")) if params.get("vnfs") else []
+    vnfs = params.get("vnfs") if params.get("vnfs") else []
     result_vnfs = []
     for i in vnfs:
 
       faces = i.get("faces") if i.get("faces") else []
       faces_deleted = []
       vnf_address = i.get("vnf_address") + ":50051" if i.get("vnf_address") else "localhost:50051"
+      
       with grpc.insecure_channel(
           target= vnf_address,
           options=[("grpc.enable_retries", 0),
@@ -218,6 +236,12 @@ class NfdFace:
           face_delete_req = nfd_agent_pb2.NFDFaceIDReq()
           face_delete_req.faceid = int(face.get("link_id"))
 
+          if face.get("neighbor_hostname"):
+            face_delete_req.neighbor_hostname = face.get("neighbor_hostname")
+          if face.get("neighbor_ip"):
+            face_delete_req.neighbor_ip = face.get("neighbor_ip")
+          if face.get("neighbor_site_route"):
+            face_delete_req.neighbor_site_route = face.get("neighbor_site_route")
 
           grpc_res = grpc_client.NFDFaceDestroy(face_delete_req)
           ack_msg = grpc_res.ack_msg
@@ -239,7 +263,8 @@ class NfdFace:
 
 class NfdRoute:
   def create(self, params):
-    templates = json.loads(params.get("templates")) if params.get("templates") else []
+    #templates = json.loads(params.get("templates")) if params.get("templates") else []
+    templates = params.get("templates") if params.get("templates") else []
     errmsg = ""
     for template in templates:
       vnf_ip = template.get("vnf_ip") + ":50051" if template.get("vnf_ip") else "localhost:50051"
@@ -264,6 +289,38 @@ class NfdRoute:
             route_req.expires = route.get("expires")
               
           grpc_res = grpc_client.NFDRouteAdd(route_req)
+          ack_code = grpc_res.ack_code
+
+          if ack_code == "err":
+            errmsg = grpc_res.ack_msg
+            break
+          
+    return {
+      "id": params.get('id'),
+      "result": "OK" if not errmsg else "ERROR",
+      "errmsg": errmsg
+    }
+
+  def delete(self, params):
+    templates = params.get("templates") if params.get("templates") else []
+    errmsg = ""
+    for template in templates:
+      vnf_ip = template.get("vnf_ip") + ":50051" if template.get("vnf_ip") else "localhost:50051"
+      with grpc.insecure_channel(
+        target= vnf_ip,
+        options=[("grpc.enable_retries", 0),
+                  ("grpc.keepalive_timeout_ms", 10000)]) as channel:
+        
+        routes = template.get("route_del", [])
+        grpc_client = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
+        for route in routes:
+          route_req = nfd_agent_pb2.NFDRouteReq()
+          if route.get("prefix"):
+            route_req.prefix = route.get("prefix")
+          if route.get("nexthop"):
+            route_req.nexthop = route.get("nexthop")
+              
+          grpc_res = grpc_client.NFDRouteRemove(route_req)
           ack_code = grpc_res.ack_code
 
           if ack_code == "err":
@@ -365,7 +422,7 @@ class NFDStrategy:
         "strategy_list": result
       }
   def create(self,params):
-    templates = json.loads(params.get("templates")) if params.get("templates") else []
+    templates = params.get("templates") if params.get("templates") else []
     errmsg = ""
     for template in templates:
       vnf_ip = template.get("vnf_ip") + ":50051" if template.get("vnf_ip") else "localhost:50051"
@@ -395,28 +452,85 @@ class NFDStrategy:
       "result": "OK" if not errmsg else "ERROR",
       "errmsg": errmsg
     }
-  def unset(self, params):
-    vnf_ip = params.get("vnf_ip") + ":50051" if params.get("vnf_ip") else "localhost:50051"
-    strategy_unset = params.get("strategy_unset", [])
-    errmsg = ""
-    with grpc.insecure_channel(
-      target= vnf_ip,
-      options=[("grpc.enable_retries", 0),
-                ("grpc.keepalive_timeout_ms", 10000)]) as channel:
     
+  def unset(self, params):
+    templates = params.get("templates") if params.get("templates") else []
+    errmsg = ""
+    for template in templates:
+      vnf_ip = template.get("vnf_ip") + ":50051" if template.get("vnf_ip") else "localhost:50051"
+      strategy_unset = template.get("strategy_unset", [])
+      errmsg = ""
+      with grpc.insecure_channel(
+        target= vnf_ip,
+        options=[("grpc.enable_retries", 0),
+                  ("grpc.keepalive_timeout_ms", 10000)]) as channel:
+         
+        grpc_client = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
+        for strategy in strategy_unset:
+          strategy_req = nfd_agent_pb2.NFDStrategyReq()
+          if strategy.get("prefix"):
+            strategy_req.prefix = strategy.get("prefix")
+            grpc_res = grpc_client.NFDStrategyUnset(strategy_req)
+            ack_code = grpc_res.ack_code
+      
+            if ack_code == "err":
+              errmsg = grpc_res.ack_msg
+              break
+    return {
+      "vnf_ip": params.get('vnf_ip'),
+      "result": "OK" if not errmsg else "ERROR",
+      "errmsg": errmsg
+    }
+
+class NLSR:
+  def get(self, ip):
+    with grpc.insecure_channel(
+          target= ip + ":50051",
+          options=[("grpc.enable_retries", 0),
+                    ("grpc.keepalive_timeout_ms", 10000)]) as channel:
       grpc_client = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
-      for strategy in strategy_unset:
-        strategy_req = nfd_agent_pb2.NFDStrategyReq()
-        if strategy.get("prefix"):
-          strategy_req.prefix = strategy.get("prefix")
-          grpc_res = grpc_client.NFDStrategyUnset(strategy_req)
+
+      grpc_res = grpc_client.NLSRLsdbList(empty_pb2.Empty())
+      lsdbs = grpc_res.lsdbs
+      result = []
+
+      if grpc_res.ack.ack_code == 'ok':
+        result= list(map(lambda lsdb: { "origin_router": lsdb.origin_router, "prefix": lsdb.prefix}, lsdbs))
+
+      return {
+        "lsdb_list": result
+      }
+      
+  def advertise(self,params):
+    templates = params.get("templates") if params.get("templates") else []
+    errmsg = ""
+    for template in templates:
+      vnf_ip = template.get("vnf_ip") + ":50051" if template.get("vnf_ip") else "localhost:50051"
+      with grpc.insecure_channel(
+        target= vnf_ip,
+        options=[("grpc.enable_retries", 0),
+                  ("grpc.keepalive_timeout_ms", 10000)]) as channel:
+        
+        advertises = template.get("advertise_set", [])
+        grpc_client = nfd_agent_pb2_grpc.NFDRouterAgentStub(channel)
+        for advertise in advertises:
+          advertise_req = nfd_agent_pb2.NLSRAdvertiseReq()
+          if advertise.get('mode'):
+              advertise_req.mode = advertise.get('mode')
+          if advertise.get('prefix'):
+              advertise_req.prefix = advertise.get('prefix')
+          if advertise.get('save'):
+              advertise_req.save = advertise.get('save')
+              
+          grpc_res = grpc_client.NLSRAdvertiseName(advertise_req)
           ack_code = grpc_res.ack_code
 
           if ack_code == "err":
             errmsg = grpc_res.ack_msg
             break
-      return {
-        "vnf_ip": params.get('vnf_ip'),
-        "result": "OK" if not errmsg else "ERROR",
-        "errmsg": errmsg
-      }
+          
+    return {
+      "id": params.get('id'),
+      "result": "OK" if not errmsg else "ERROR",
+      "errmsg": errmsg
+    }

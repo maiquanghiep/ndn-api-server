@@ -44,6 +44,9 @@ message AckReply{
 // '0' is ALL or other number is faceid
 message NFDFaceIDReq{
     int32 faceid = 1;
+    string neighbor_hostname = 2;
+    string neighbor_ip = 3;
+    string neighbor_site_route = 4;
 }
 
 // Response NFD Face List
@@ -75,6 +78,9 @@ message NFDFaceCreateReq{
     string congestion_marking_interval = 6; // specified in milliseconds
     string default_congestion_threshold = 7;// specified in bytes
     string mtu = 8;                         // specified in bytes
+    string neighbor_hostname = 9;
+    string neighbor_ip = 10;
+    string neighbor_site_route = 11;
 }
 
 message NFDFibListRes{
@@ -131,6 +137,22 @@ message NFDStrategyShowRes{
 }
 
 
+message NLSRAdvertiseReq{
+    string mode = 1;    	// advertise or withdraw
+    string prefix = 2; 		// advertise or withdraw a name prefix
+    string save = 3;    	// save or delete
+}
+
+
+message LSDB{
+    string origin_router = 1;
+    string prefix = 2;
+}
+message NLSRLsdbListRes{
+    repeated LSDB lsdbs = 1; 		// nlsr lsdb list
+    AckReply ack = 2;
+}
+
 // NFD and NLSR exported by the server.
 service NFDRouterAgent {
 
@@ -160,4 +182,8 @@ service NFDRouterAgent {
     rpc NFDStrategyShow(NFDStrategyReq) returns (NFDStrategyShowRes) {}
     rpc NFDStrategySet(NFDStrategyReq) returns (AckReply) {}
     rpc NFDStrategyUnset(NFDStrategyReq) returns (AckReply) {}
+
+    // nlsr advertise, withdraw
+    rpc NLSRAdvertiseName(NLSRAdvertiseReq) returns (AckReply) {}
+    rpc NLSRLsdbList(google.protobuf.Empty) returns (NLSRLsdbListRes) {}
 }
