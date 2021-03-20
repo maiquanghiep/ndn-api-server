@@ -9,7 +9,7 @@ grpc==0.3.post19
 idna==2.9
 ipaddress==1.0.23
 itsdangerous==1.1.0
-Jinja2==2.11.2
+Jinja2==2.11.3
 kubernetes==11.0.0
 MarkupSafe==1.1.1
 msgpack-python==0.5.6
